@@ -1,3 +1,5 @@
 mangum~=0.17.0
 fastapi
 sentence_transformers
+whisper
+uvicorn

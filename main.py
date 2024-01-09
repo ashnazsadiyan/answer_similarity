@@ -18,7 +18,7 @@ def index():
 
 
 # get score
-@app.post("/")
+@app.post("/answer")
 def get_score(similaranswer: SimilarAnswer):
     model = SentenceTransformer('all-MiniLM-L6-v2')
     embeddings = model.encode([similaranswer.expected_answer, similaranswer.given_answer], convert_to_tensor=True)
