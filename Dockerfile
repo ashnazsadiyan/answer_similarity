@@ -1,4 +1,4 @@
-FROM katalonstudio/katalon
+FROM ubuntu:20.04
 
 # Install Python and pip
 RUN apt-get -y update && \
