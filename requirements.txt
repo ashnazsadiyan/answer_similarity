@@ -3,3 +3,4 @@ fastapi
 sentence_transformers
 whisper
 uvicorn
+boto3
