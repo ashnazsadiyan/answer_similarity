@@ -1,7 +1,10 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request
 from mangum import Mangum
 from sentence_transformers import SentenceTransformer, util
 from pydantic import BaseModel
+import os
+
+os.environ['TRANSFORMERS_CACHE'] = './cache'
 
 app = FastAPI()
 handler = Mangum(app)
@@ -26,11 +29,8 @@ def get_score(similaranswer: SimilarAnswer, response: Response):
         cosine_score = util.pytorch_cos_sim(embeddings[0], embeddings[1])
         similarity_score = cosine_score.item()
         print(f"Similarity Score for Answers: {similarity_score}")
-        return {"Similarity Score for Answers":similarity_score}
+        return {"Similarity Score for Answers": similarity_score}
     except Exception as e:
         print(e)
         response.status_code = 500
         return {"message": "something went wrong"}
-
-
-
