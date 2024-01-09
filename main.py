@@ -5,10 +5,8 @@ from pydantic import BaseModel
 import os
 from boto3.session import Session
 import whisper
-import soundfile as sf
-import numpy as np
 
-os.environ['TRANSFORMERS_CACHE'] = '/tmp/cache'
+os.environ["TRANSFORMERS_CACHE"] = "/tmp/data"
 
 session = Session(
     aws_access_key_id='AKIAZC3RQOWY7PYQKW5W',
@@ -34,20 +32,12 @@ def index():
 
 def get_text(file_name: str):
     try:
-        s3_object = s3.get_object(Bucket="sagemakerquestions", Key=file_name)
-        audio_stream = s3_object["Body"]
-
-        # Download the audio file to a temporary location
-        temp_file_path = f'/tmp/{file_name}'  # Replace with your temporary file path and format
-        with open(temp_file_path, 'wb') as f:
-            f.write(audio_stream.read())
-
-        # Read the downloaded file using soundfile
-        audio_data, sample_rate = sf.read(temp_file_path, dtype='float32')
-
+        local_file_path = f"/tmp/data/{file_name}"
+        cache_dir = '/tmp/data'
+        os.makedirs(cache_dir, exist_ok=True)
+        s3.download_file("sagemakerquestions", file_name, local_file_path)
         model = whisper.load_model("base")
-        result = model.transcribe(temp_file_path, fp16=False)
-
+        result = model.transcribe(local_file_path, fp16=False)
         return result["text"]
     except Exception as e:
         print(f"Error during transcription: {e}")
@@ -60,7 +50,7 @@ def get_score(similaranswer: SimilarAnswer, response: Response):
     try:
         transcribed_text = get_text(similaranswer.file_name)
         return {"Similarity Score for Answers": transcribed_text}
-        # model = SentenceTransformer('all-MiniLM-L6-v2',cache_folder='/tmp/cache')
+        # model = SentenceTransformer('all-MiniLM-L6-v2',cache_folder='/tmp/data')
         # embeddings = model.encode([similaranswer.expected_answer, similaranswer.given_answer], convert_to_tensor=True)
         # cosine_score = util.pytorch_cos_sim(embeddings[0], embeddings[1])
         # similarity_score = cosine_score.item()
