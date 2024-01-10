@@ -1,8 +1,5 @@
-FROM ubuntu:20.04
+FROM public.ecr.aws/lambda/python:3.11
 
-# Install Python and pip
-RUN apt-get -y update && \
-    apt-get install -y python3 python3-pip ffmpeg
 
 # Create a directory for data
 RUN mkdir /tmp/data

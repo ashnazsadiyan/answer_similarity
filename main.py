@@ -3,26 +3,32 @@ from mangum import Mangum
 from sentence_transformers import SentenceTransformer, util
 from pydantic import BaseModel
 import os
-from boto3.session import Session
-import whisper
+from typing import List
 
 os.environ["TRANSFORMERS_CACHE"] = "/tmp/data"
-
-session = Session(
-    aws_access_key_id='AKIAZC3RQOWY7PYQKW5W',
-    aws_secret_access_key='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',
-    region_name='ap-southeast-2'
-)
-
-s3 = session.client('s3')
 
 app = FastAPI()
 handler = Mangum(app)
 
 
-class SimilarAnswer(BaseModel):
-    expected_answer: str
-    file_name: str
+# question class
+class Question:
+    def __init__(self, answer: str, expected: str):
+        self.answer = answer
+        self.expected = expected
+        self.result = 0
+
+
+# question Base model
+class QuestionsAnswers(BaseModel):
+    answer: str
+    question: str
+    expected: str
+
+
+# questions Base model
+class Questions(BaseModel):
+    questions: List[QuestionsAnswers]
 
 
 @app.get("/")
@@ -30,32 +36,30 @@ def index():
     return {"testing": "testing"}
 
 
-def get_text(file_name: str):
-    try:
-        local_file_path = f"/tmp/data/{file_name}"
-        cache_dir = '/tmp/data'
-        os.makedirs(cache_dir, exist_ok=True)
-        s3.download_file("sagemakerquestions", file_name, local_file_path)
-        model = whisper.load_model("base")
-        result = model.transcribe(local_file_path, fp16=False)
-        return result["text"]
-    except Exception as e:
-        print(f"Error during transcription: {e}")
-        return None
+def check_text(expected_answer: str, given_answer: str):
+    model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder='/tmp/data')
+    embeddings = model.encode([expected_answer, given_answer], convert_to_tensor=True)
+    cosine_score = util.pytorch_cos_sim(embeddings[0], embeddings[1])
+    similarity_score = cosine_score.item()
+    print(f"Similarity Score for : {similarity_score}")
+    return similarity_score
 
 
 # get score
 @app.post("/answer")
-def get_score(similaranswer: SimilarAnswer, response: Response):
+def get_score(questions: Questions, response: Response):
+    new_result = []
     try:
-        transcribed_text = get_text(similaranswer.file_name)
-        return {"Similarity Score for Answers": transcribed_text}
-        # model = SentenceTransformer('all-MiniLM-L6-v2',cache_folder='/tmp/data')
-        # embeddings = model.encode([similaranswer.expected_answer, similaranswer.given_answer], convert_to_tensor=True)
-        # cosine_score = util.pytorch_cos_sim(embeddings[0], embeddings[1])
-        # similarity_score = cosine_score.item()
-        # print(f"Similarity Score for Answers: {similarity_score}")
-        # return {"Similarity Score for Answers": similarity_score}
+        for question in questions.questions:
+            if question.answer:
+                new_question = Question(question.answer, question.expected)
+                new_question.result = check_text(question.expected,question.answer )
+                new_result.append(new_question)
+            else:
+                response.status_code = 400
+                return {"message": "no data found"}
+        return {"message": new_result}
+
     except Exception as e:
         print(e)
         response.status_code = 500
